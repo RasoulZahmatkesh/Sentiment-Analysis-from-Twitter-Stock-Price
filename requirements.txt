@@ -1,0 +1,6 @@
+pandas
+snscrape
+transformers
+torch
+yfinance
+matplotlib
