@@ -1,89 +1,184 @@
+# =========================================================
+# Multi-Source Sentiment Analysis for Stocks & Crypto
+# =========================================================
+
+# ----------------------
+# API CONFIGURATION
+# ----------------------
+REDDIT_CLIENT_ID = "YOUR_REDDIT_CLIENT_ID"
+REDDIT_CLIENT_SECRET = "YOUR_REDDIT_CLIENT_SECRET"
+REDDIT_USER_AGENT = "sentiment_app"
+
+NEWS_API_KEY = "YOUR_NEWSAPI_KEY"
+
+# ----------------------
+# ASSET CONFIGURATION
+# ----------------------
+ASSET_NAME = "Bitcoin"
+SYMBOL = "BTC"
+MARKET_TYPE = "crypto"   # "stock" or "crypto"
+DAYS = 7
+LIMIT = 300
+
+# =========================================================
+# IMPORTS
+# =========================================================
 import snscrape.modules.twitter as sntwitter
+import praw
+from newsapi import NewsApiClient
 import pandas as pd
 from datetime import datetime, timedelta
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from transformers import pipeline
 import yfinance as yf
-import matplotlib.pyplot as plt
-import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 
-# ----------------------
-# Configuration
-# ----------------------
-TICKER = "AAPL"
-QUERY = f"{TICKER} OR ${TICKER}"
-LIMIT = 300
-DAYS = 7
-MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
+# =========================================================
+# 1. DATA SOURCES
+# =========================================================
 
-# ----------------------
-# 1. Fetch Tweets
-# ----------------------
-def get_tweets(query, days=7, limit=300):
-    since_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-    tweets = []
-    for i, tweet in enumerate(sntwitter.TwitterSearchScraper(f'{query} since:{since_date}').get_items()):
+def fetch_twitter(query, days, limit):
+    since = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    texts = []
+
+    scraper = sntwitter.TwitterSearchScraper(
+        f"{query} lang:en since:{since} -filter:retweets"
+    )
+
+    for i, tweet in enumerate(scraper.get_items()):
         if i >= limit:
             break
-        tweets.append([tweet.date, tweet.content])
-    df = pd.DataFrame(tweets, columns=['datetime', 'text'])
-    df['date'] = pd.to_datetime(df['datetime']).dt.date
-    return df
+        texts.append(tweet.content)
 
-# ----------------------
-# 2. Load Sentiment Model (RoBERTa)
-# ----------------------
+    return texts
+
+
+def fetch_reddit(query, limit):
+    reddit = praw.Reddit(
+        client_id=REDDIT_CLIENT_ID,
+        client_secret=REDDIT_CLIENT_SECRET,
+        user_agent=REDDIT_USER_AGENT
+    )
+
+    texts = []
+    for post in reddit.subreddit("all").search(query, limit=limit):
+        texts.append(post.title + " " + post.selftext)
+
+    return texts
+
+
+def fetch_news(query, days):
+    newsapi = NewsApiClient(api_key=NEWS_API_KEY)
+    from_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+    articles = newsapi.get_everything(
+        q=query,
+        from_param=from_date,
+        language="en",
+        sort_by="relevancy"
+    )
+
+    return [
+        a["title"] + " " + (a["description"] or "")
+        for a in articles["articles"]
+    ]
+
+# =========================================================
+# 2. SENTIMENT MODEL
+# =========================================================
+
+MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
+
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-sentiment_pipeline = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
 
-# ----------------------
-# 3. Run Sentiment Analysis
-# ----------------------
-def classify_sentiment(text):
-    try:
-        result = sentiment_pipeline(text[:512])[0]
-        return result['label']
-    except:
-        return "unknown"
+sentiment_pipeline = pipeline(
+    "sentiment-analysis",
+    model=model,
+    tokenizer=tokenizer,
+    truncation=True,
+    max_length=512
+)
 
-# ----------------------
-# 4. Apply Sentiment
-# ----------------------
-df_tweets = get_tweets(QUERY, DAYS, LIMIT)
-df_tweets['sentiment'] = df_tweets['text'].apply(classify_sentiment)
+def analyze_sentiment(texts):
+    counts = {"LABEL_0": 0, "LABEL_1": 0, "LABEL_2": 0}
 
-# ----------------------
-# 5. Get Stock Prices
-# ----------------------
-stock = yf.Ticker(TICKER)
-df_price = stock.history(period=f"{DAYS}d")[['Close']]
-df_price.reset_index(inplace=True)
-df_price['Date'] = df_price['Date'].dt.date
+    for text in texts:
+        try:
+            label = sentiment_pipeline(text)[0]["label"]
+            counts[label] += 1
+        except:
+            pass
 
-# ----------------------
-# 6. Aggregate Sentiments
-# ----------------------
-daily_sentiment = df_tweets.groupby(['date', 'sentiment']).size().unstack(fill_value=0)
-df_merged = df_price.merge(daily_sentiment, left_on="Date", right_on="date", how="left").fillna(0)
+    score = counts["LABEL_2"] - counts["LABEL_0"]
+    return counts, score
 
-# ----------------------
-# 7. Save and Plot
-# ----------------------
-df_merged.to_csv("sentiment_vs_price.csv", index=False)
+# =========================================================
+# 3. PRICE FETCH
+# =========================================================
 
-plt.figure(figsize=(12, 6))
-plt.plot(df_merged["Date"], df_merged["Close"], label="Stock Price", color='blue', marker='o')
+def get_price(symbol, market_type, days):
+    if market_type == "stock":
+        ticker = symbol
+    else:
+        ticker = f"{symbol}-USD"
 
-if 'LABEL_2' in df_merged.columns:
-    plt.bar(df_merged["Date"], df_merged["LABEL_2"], width=0.3, alpha=0.5, color='green', label="Positive")
-if 'LABEL_0' in df_merged.columns:
-    plt.bar(df_merged["Date"], -df_merged["LABEL_0"], width=0.3, alpha=0.5, color='red', label="Negative")
+    data = yf.Ticker(ticker).history(period=f"{days}d")
+    return data["Close"].iloc[-1]
 
-plt.title(f"Twitter Sentiment vs {TICKER} Stock Price")
-plt.xlabel("Date")
-plt.ylabel("Price / Tweet Count")
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+# =========================================================
+# 4. INSIGHT ENGINE (TEXT ANALYSIS)
+# =========================================================
+
+def generate_insight(asset, symbol, price, counts, score):
+    if score > 20:
+        mood = "Strongly Bullish"
+    elif score > 5:
+        mood = "Mildly Bullish"
+    elif score < -20:
+        mood = "Strongly Bearish"
+    elif score < -5:
+        mood = "Mildly Bearish"
+    else:
+        mood = "Neutral"
+
+    return f"""
+Asset: {asset} ({symbol})
+Market Price: {price:.2f}
+
+Sentiment Summary:
+- Positive: {counts['LABEL_2']}
+- Neutral: {counts['LABEL_1']}
+- Negative: {counts['LABEL_0']}
+
+Overall Market Mood: {mood}
+
+Interpretation:
+Public discourse across social media and news sources suggests a {mood.lower()}
+sentiment toward {asset}. This reflects the prevailing psychological bias of
+market participants over the last {DAYS} days.
+"""
+
+# =========================================================
+# 5. PIPELINE EXECUTION
+# =========================================================
+
+query = f"{ASSET_NAME} OR {SYMBOL}"
+
+twitter_data = fetch_twitter(query, DAYS, LIMIT)
+reddit_data = fetch_reddit(query, LIMIT // 3)
+news_data = fetch_news(query, DAYS)
+
+all_texts = twitter_data + reddit_data + news_data
+
+sentiment_counts, sentiment_score = analyze_sentiment(all_texts)
+
+price = get_price(SYMBOL, MARKET_TYPE, DAYS)
+
+report = generate_insight(
+    ASSET_NAME,
+    SYMBOL,
+    price,
+    sentiment_counts,
+    sentiment_score
+)
+
+print(report)
