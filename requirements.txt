@@ -1,6 +1,30 @@
-pandas
-snscrape
-transformers
-torch
-yfinance
-matplotlib
+# Core data handling
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Date & time utilities
+python-dateutil>=2.8.2
+
+# Twitter scraping (no API)
+snscrape>=0.7.0.20230622
+
+# Reddit API
+praw>=7.7.0
+
+# News API
+newsapi-python>=0.2.7
+
+# Financial data (stocks & crypto)
+yfinance>=0.2.30
+
+# NLP & Sentiment Analysis
+transformers>=4.36.0
+torch>=2.0.0
+sentencepiece>=0.1.99
+
+# Visualization (optional but recommended)
+matplotlib>=3.7.0
+
+# HTTP & utils
+requests>=2.31.0
+tqdm>=4.66.0
