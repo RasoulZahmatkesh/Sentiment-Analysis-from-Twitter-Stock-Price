@@ -1,8 +1,8 @@
-# 📊 Sentiment Analysis of Twitter and Stock Prices
+# 📊 Sentiment Analysis of Twitter (X) and Stock Prices
 
 This project performs sentiment analysis on tweets related to a specific stock (e.g., $AAPL) using a transformer-based model (RoBERTa), then compares it with the stock's price over the same period.
 
-## 🧰 Tools
+# 🧰 Tools
 - Python
 - snscrape (Twitter data scraping)
 - HuggingFace Transformers
@@ -10,19 +10,19 @@ This project performs sentiment analysis on tweets related to a specific stock (
 - yfinance (Stock data)
 - matplotlib & pandas
 
-## 🚀 Run
+# 🚀 Run
 
 ```bash
 pip install -r requirements.txt
 python sentiment_analysis.py
 ```
 
-## 📈 Output
+# 📈 Output
 
 - `sentiment_vs_price.csv`: merged data
 - Chart showing stock price vs sentiment counts
 
-## 📌 Notes
+# 📌 Notes
 
 - You can change the stock symbol in the script.
 - Adjust `DAYS` and `LIMIT` to fetch more or fewer tweets.
