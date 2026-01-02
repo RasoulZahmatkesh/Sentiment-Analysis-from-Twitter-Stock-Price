@@ -1,10 +1,10 @@
-# 📊 Sentiment Analysis of Twitter (X) and Stock Prices
+# Multi-Source Sentiment Analysis for Stocks & Crypto
 
 This project performs sentiment analysis on tweets related to a specific stock (e.g., $AAPL) using a transformer-based model (RoBERTa), then compares it with the stock's price over the same period.
 
 # 🧰 Tools
 - Python
-- snscrape (Twitter data scraping)
+- snscrape (Multi-Source)
 - HuggingFace Transformers
 - RoBERTa Model: `cardiffnlp/twitter-roberta-base-sentiment`
 - yfinance (Stock data)
