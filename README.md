@@ -1,28 +1,75 @@
 # Multi-Source Sentiment Analysis for Stocks & Crypto
 
-This project performs sentiment analysis on tweets related to a specific stock (e.g., $AAPL) using a transformer-based model (RoBERTa), then compares it with the stock's price over the same period.
+### The project (file) name has been renamed from sentiment analysis of financial news and tweet to Multi-Source Sentiment Analysis for Stocks & Crypto 
 
-# 🧰 Tools
-- Python
-- snscrape (Multi-Source)
-- HuggingFace Transformers
-- RoBERTa Model: `cardiffnlp/twitter-roberta-base-sentiment`
-- yfinance (Stock data)
-- matplotlib & pandas
+# 📊 Multi-Source Sentiment Analysis for Stocks & Cryptocurrencies
 
-# 🚀 Run
+This project implements a **multi-source sentiment analysis engine** that analyzes public opinion from social media and news sources and combines it with **financial market data** for both **stocks** and **cryptocurrencies**.
+
+The system is designed as a **research-grade pipeline** suitable for financial analysis, market sentiment tracking, and downstream applications such as trading signals or dashboards.
+
+---
+
+## 🚀 Features
+
+- ✅ Multi-source text data collection:
+  - Twitter (via `snscrape`, no API required)
+  - Reddit (via official Reddit API)
+  - News articles (via NewsAPI)
+- ✅ Supports both:
+  - **Stocks** (e.g. AAPL, TSLA)
+  - **Cryptocurrencies** (e.g. BTC, ETH)
+- ✅ Transformer-based sentiment analysis using **RoBERTa**
+- ✅ Aggregated sentiment scoring (Positive − Negative)
+- ✅ Human-readable **textual insight report**
+- ✅ Clean, single-file Python implementation
+- ✅ Ready for extension (API, dashboard, ML models)
+
+---
+
+## 🧠 Sentiment Model
+
+- **Model**: `cardiffnlp/twitter-roberta-base-sentiment`
+- **Labels**:
+  - `LABEL_0`: Negative
+  - `LABEL_1`: Neutral
+  - `LABEL_2`: Positive
+
+**Sentiment Score Formula:**
+---
+# 📥 Data Sources
+
+| Source   | Method     | API Required |
+|--------|------------|--------------|
+| Twitter | snscrape   | ❌ No |
+| Reddit | PRAW       | ✅ Yes |
+| News   | NewsAPI    | ✅ Yes |
+| Prices | yfinance   | ❌ No |
+---
+# 🛠 Requirements
+- Python **3.9+**
+- Internet connection
+- API keys for:
+  - Reddit
+  - NewsAPI
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-python sentiment_analysis.py
 ```
 
-# 📈 Output
+**Sample Output**
+Asset: Bitcoin (BTC)
+Market Price: 43120.45
 
-- `sentiment_vs_price.csv`: merged data
-- Chart showing stock price vs sentiment counts
+Sentiment Summary:
+- Positive: 182
+- Neutral: 241
+- Negative: 96
 
-# 📌 Notes
+Overall Market Mood: Mildly Bullish
 
-- You can change the stock symbol in the script.
-- Adjust `DAYS` and `LIMIT` to fetch more or fewer tweets.
+Interpretation:
+Public discourse across social media and news sources suggests a mildly bullish
+sentiment toward Bitcoin over the last 7 days.
